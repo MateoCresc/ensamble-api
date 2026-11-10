@@ -1,0 +1,107 @@
+openapi: 3.0.3
+info:
+  title: Ensamble — Taller a Medida API
+  version: 0.1.0
+  description: |
+    API REST del taller de fabricación a medida (carpintería / herrería).
+    Gestiona clientes, materiales y encargos con arquitectura en capas.
+
+    Todas las respuestas de error tienen el formato `{ "error": { "code", "message", "details"? } }`.
+servers:
+  - url: /
+    description: Servidor actual
+
+tags:
+  - name: Estado
+    description: Salud del servicio
+
+paths:
+  /health:
+    get:
+      tags: [Estado]
+      summary: Estado del servicio
+      description: Indica que la API está activa y con qué tipo de persistencia fue iniciada.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Servicio activo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+                persistence: memory
+        "500":
+          description: Error inesperado del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Ocurrió un error inesperado en el servidor
+
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, persistence]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        persistence:
+          type: string
+          enum: [memory, sequelize]
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Identificador en MAYÚSCULAS_CON_GUIONES
+              example: NOT_FOUND
+            message:
+              type: string
+              description: Texto legible del error
+              example: "Ruta no encontrada: GET /no-existe"
+            details:
+              description: Información adicional; solo aparece cuando corresponde
+              oneOf:
+                - type: array
+                  items: {}
+                - type: object
+
+    ErrorValidacion:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+            message:
+              type: string
+              example: Los datos enviados no son válidos
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field:
+                    type: string
+                    example: nombre
+                  message:
+                    type: string
+                    example: "Too small: expected string to have >=1 characters"

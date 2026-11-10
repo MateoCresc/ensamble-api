@@ -1,0 +1,20 @@
+# Pedidos de verificación manual (extensión REST Client de VS Code).
+@baseUrl = http://localhost:3000
+
+### Estado del servicio → 200 { status: "ok", persistence }
+GET {{baseUrl}}/health
+
+### Ruta inexistente → 404 NOT_FOUND
+GET {{baseUrl}}/no-existe
+
+### JSON mal formado → 400 INVALID_JSON
+POST {{baseUrl}}/health
+Content-Type: application/json
+
+{ "nombre":
+
+### Especificación OpenAPI → 200 JSON con openapi 3.x
+GET {{baseUrl}}/api-docs.json
+
+### Swagger UI → 200 HTML
+GET {{baseUrl}}/api-docs/
