@@ -4,10 +4,11 @@ import { makeHealthRouter } from "../routes/health.routes.js";
 
 // Composition Root: resuelve dependencias y devuelve el router principal de la API.
 // Es asíncrono para poder inicializar la persistencia (p. ej. sequelize.sync()) sin tocar index.js.
-export const buildContainer = async () => {
+// Las opciones permiten elegir la persistencia desde los tests; por defecto se usa la de config.
+export const buildContainer = async ({ persistenceType = PERSISTENCE_TYPE } = {}) => {
   const router = Router();
 
-  router.use(makeHealthRouter({ persistence: PERSISTENCE_TYPE }));
+  router.use(makeHealthRouter({ persistence: persistenceType }));
 
   return router;
 };

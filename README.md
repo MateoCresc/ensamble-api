@@ -68,6 +68,26 @@ Todas las respuestas de error tienen la forma:
 
 `details` aparece solo cuando hay información adicional (por ejemplo, en `VALIDATION_ERROR`, como lista de `{ field, message }`).
 
+## Tests
+
+Los tests usan [Vitest](https://vitest.dev/) y [supertest](https://github.com/ladjs/supertest). No necesitan `.env` ni levantan un servidor: los tests HTTP arman la app con `createApp()` (en `app.js`) y persistencia en memoria.
+
+```bash
+npm test               # una corrida de toda la suite
+npm run test:watch     # modo watch, vuelve a correr al guardar
+npm run test:coverage  # corrida con reporte de cobertura en coverage/
+```
+
+```
+tests/
+  unit/        ← reglas de negocio y middlewares, sin base de datos ni process.env
+                 (casos de uso en unit/usecases/<entidad>/<casoDeUso>.test.js)
+  http/        ← endpoints de punta a punta con supertest (<entidad>.http.test.js)
+  helpers/     ← builders y fábricas de datos de prueba (p. ej. buildTestApp)
+```
+
+`buildTestApp(options)` (en `tests/helpers/`) arma la app con `persistenceType: "memory"` por defecto; se le puede pasar otra opción para probar otro modo, por ejemplo `buildTestApp({ persistenceType: "sequelize" })`.
+
 ## Verificación manual
 
 El archivo [`requests.http`](requests.http) tiene los pedidos de prueba (extensión REST Client de VS Code). También se pueden probar desde Swagger UI con *Try it out*.
