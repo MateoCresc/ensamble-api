@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  Language: es
+  All artifacts must be written in es.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Proyecto: Ensamble — Taller a Medida (ensamble-api).
+  Trabajo Práctico Integrador de una API REST con arquitectura en capas.
+  Dominio: taller de fabricación a medida (carpintería / herrería).
+    - Cliente (1) — (N) Encargo
+    - Encargo (N) — (N) Material, vía EncargoMaterial { encargoId, materialId, cantidad }
+    - Estados de Encargo: presupuestado → confirmado → en_produccion → entregado; cancelado.
+    - Regla central: confirmar un encargo descuenta stock de todos sus materiales de forma atómica (409 STOCK_INSUFICIENTE si falta).
+    - Eventos: encargo.confirmado y material.stockBajo.
+
+  Stack: Node.js 20+ con ES Modules, Express 5, Zod 4, Sequelize 6 + SQLite,
+  swagger-ui-express con docs/openapi.yaml (OpenAPI 3), node --env-file para variables.
+  Sin TypeScript ni librerías de inyección de dependencias: DI manual con factories.
+
+  Arquitectura obligatoria (consigna):
+    routes/ → controllers/ → usecases/ → dao/  (inversión de dependencias)
+    Carpetas: routes/, controllers/, usecases/, dao/, schemas/, middlewares/, errors/, config/, container/
+    (además: events/, listeners/, notifications/, connection/, docs/).
+    - index.js solo arranca el servidor y monta el router que devuelve el contenedor.
+    - config/config.js es el único lugar que lee process.env.
+    - container/container.js resuelve DAOs (daoFactory), crea el bus de eventos, arma casos de uso
+      con makeXxxUseCases(deps), los inyecta en controladores y monta los routers.
+    - Los casos de uso no importan DAOs concretos ni leen config; los controladores no conocen DAOs.
+    - Cada entidad tiene dos DAO con la misma interfaz (Memory y Sequelize), elegidos por PERSISTENCE_TYPE.
+    - Los DAO devuelven objetos planos; ambos modos responden igual.
+
+  Convenciones:
+    - Nombres de carpetas en minúscula (usecases/, no useCases/).
+    - Campos y rutas del dominio en español (/clientes, /materiales, /encargos).
+    - Errores: clase AppError(code, message, statusCode, details); respuesta
+      { error: { code, message, details? } }. Códigos: 200, 201, 204, 400, 404, 409, 500.
+    - Validación con un middleware validate(schema, target) para body, params y query.
+    - Eventos con nombre "entidad.hecho"; los listeners capturan sus propios errores.
+    - Cada endpoint nuevo se documenta en docs/openapi.yaml en el mismo change, con $ref a components/schemas.
+
+  Testing (TDD obligatorio): Vitest + supertest. Ver AGENTS.md §3 y §4.
+    - Cada escenario de una spec se cubre con al menos un test.
+    - Tests unitarios de casos de uso con DAO en memoria y EventEmitter inyectados.
+    - Tests HTTP sobre createApp() (app.js) sin levantar un puerto.
+  Git: los agentes no hacen commits; el autor commitea manualmente al final de cada grupo de tareas.
+
+  Referencia teórica: repo de la cursada osvaldoojeda-ort/jueves_tp2a_ya (una rama por clase).
+
+rules:
+  proposal:
+    - Indicar explícitamente qué queda fuera de alcance
+    - Si se agrega una dependencia nueva, nombrarla en Impact para que el autor la apruebe
+    - Señalar qué requisito de la consigna cubre el change
+  tasks:
+    - Tareas chicas, pensadas para commits progresivos (un commit por grupo de tareas)
+    - Seguir TDD dentro de cada grupo - primero la tarea "escribir test que falla" que nombra el escenario de la spec, después la tarea de implementación que lo hace pasar
+    - Cada grupo termina con npm test en verde y con docs/openapi.yaml y requests.http actualizados si agrega endpoints
+    - Cerrar cada grupo con una tarea de "detenerse y proponer mensaje de commit" (sin commitear)
+    - Incluir una tarea de verificación manual (requests o Swagger) y, cuando aplique, de actualización de docs/openapi.yaml
