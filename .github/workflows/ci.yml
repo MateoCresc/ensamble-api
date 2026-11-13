@@ -1,0 +1,31 @@
+name: CI
+
+# Verifica en cada PR (y en cada push a main) que los tests pasan y que las specs de OpenSpec son válidas.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  tests:
+    name: Tests y specs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests (Vitest)
+        run: npm test
+
+      - name: Validar specs (OpenSpec)
+        env:
+          OPENSPEC_TELEMETRY: "0"
+        run: npx -y @fission-ai/openspec@latest validate --all --strict

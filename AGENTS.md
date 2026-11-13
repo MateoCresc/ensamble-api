@@ -9,7 +9,8 @@ El contexto del dominio y la arquitectura está en `openspec/config.yaml`. La co
 ## 1. Reglas no negociables
 
 ### 1.1 Git: solo lectura
-- **Nunca** ejecutes `git add`, `git commit`, `git push`, `git merge`, `git rebase`, `git reset`, `git stash`, `git checkout -- <archivo>`, `git tag` ni nada que modifique el historial o el staging.
+- **Nunca** ejecutes `git add`, `git commit`, `git push`, `git merge`, `git rebase`, `git reset`, `git stash`, `git checkout`, `git switch`, `git tag` ni nada que modifique el historial, el staging o la rama activa.
+- **Nunca** abras, mergees ni cierres PRs (`gh pr create`, `gh pr merge`, etc.). Podés redactar la descripción del PR para que el autor la pegue.
 - Podés usar libremente comandos de lectura: `git status`, `git diff`, `git log`, `git show`, `git blame`.
 - Al terminar cada grupo de tareas, **detenete** y entregá:
   1. Resumen de archivos creados/modificados.
@@ -43,6 +44,16 @@ El contexto del dominio y la arquitectura está en `openspec/config.yaml`. La co
 2. **Revisión**: el autor aprueba o pide cambios. Sin aprobación explícita no se implementa.
 3. **Apply**: se implementa **un grupo de tareas por vez**, siguiendo TDD (§3), y se frena al final del grupo (§1.1).
 4. **Archive**: solo cuando el autor lo pide y todos los tests pasan.
+
+### 2.1 Ramas y PRs
+
+**Un change de OpenSpec = una rama = un PR.** El orden de los PRs está en [`docs/plan-de-prs.md`](docs/plan-de-prs.md).
+
+- Antes de empezar un `apply`, verificá con `git branch --show-current` que el autor está en la rama del change (`feat/<nombre-del-change>`, o `chore/…` si no agrega comportamiento). Si está en `main` o en otra rama, **frená y pedile que cambie**; no la cambies vos.
+- La rama se crea desde `main` actualizado, después de mergear el PR anterior. Nunca se suman commits a una rama cuyo PR ya se mergeó: se abre una nueva.
+- Dentro del PR va un commit por grupo de tareas y, como último commit, el `/opsx:archive` del change, para que `openspec/specs/` en `main` refleje siempre lo que está mergeado.
+- Un PR se puede abrir cuando todas las tareas del change están tildadas, `npm test` está en verde y `openspec validate --all --strict` no reporta errores. El CI lo vuelve a verificar.
+- Al cerrar el último grupo, además del mensaje de commit, entregá una descripción de PR siguiendo `.github/pull_request_template.md`.
 
 Cada escenario (`#### Scenario`) de una spec se traduce en al menos un test. El nombre del test referencia el escenario.
 
@@ -148,3 +159,9 @@ Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`. Alcance = entidad o �
 - [ ] `docs/openapi.yaml` y `requests.http` actualizados si hubo endpoints.
 - [ ] Tareas tildadas en `tasks.md`.
 - [ ] Resumen + mensaje de commit sugerido entregados. **Sin commitear.**
+
+Y para el PR (al cerrar el change):
+
+- [ ] Todas las tareas de `tasks.md` tildadas y change archivado.
+- [ ] `openspec validate --all --strict` sin errores.
+- [ ] Descripción de PR redactada con la plantilla. **Sin abrir el PR.**
