@@ -18,3 +18,71 @@ GET {{baseUrl}}/api-docs.json
 
 ### Swagger UI → 200 HTML
 GET {{baseUrl}}/api-docs/
+
+# ─── Clientes ──────────────────────────────────────────────────────────────
+
+### Crear cliente → 201 + Location
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{ "nombre": "Ana Pérez", "email": "ana@mail.com", "telefono": "1155550000" }
+
+### Crear otro cliente (email en mayúsculas → se guarda en minúsculas) → 201
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{ "nombre": "Mariana Gómez", "email": "MARIANA@mail.com" }
+
+### Email repetido → 409 EMAIL_DUPLICADO
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{ "nombre": "Otra Ana", "email": "ANA@mail.com" }
+
+### Datos inválidos → 400 VALIDATION_ERROR (un detalle por campo)
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{ "email": "no-es-un-email" }
+
+### Listar todos → 200
+GET {{baseUrl}}/clientes
+
+### Filtrar por nombre parcial, ordenar Z→A y paginar → 200
+GET {{baseUrl}}/clientes?nombre=ana&sort=-nombre&page=1&limit=10
+
+### Orden no permitido → 400 VALIDATION_ERROR
+GET {{baseUrl}}/clientes?sort=telefono
+
+### Obtener por id → 200
+GET {{baseUrl}}/clientes/1
+
+### Obtener inexistente → 404 CLIENTE_NO_ENCONTRADO
+GET {{baseUrl}}/clientes/999
+
+### Id inválido → 400 VALIDATION_ERROR
+GET {{baseUrl}}/clientes/abc
+
+### Actualizar parcialmente → 200
+PUT {{baseUrl}}/clientes/1
+Content-Type: application/json
+
+{ "telefono": "1166660000" }
+
+### Actualizar con el email de otro cliente → 409 EMAIL_DUPLICADO
+PUT {{baseUrl}}/clientes/2
+Content-Type: application/json
+
+{ "email": "ana@mail.com" }
+
+### Actualizar sin campos → 400 VALIDATION_ERROR
+PUT {{baseUrl}}/clientes/1
+Content-Type: application/json
+
+{}
+
+### Eliminar → 204
+DELETE {{baseUrl}}/clientes/2
+
+### Eliminar inexistente → 404 CLIENTE_NO_ENCONTRADO
+DELETE {{baseUrl}}/clientes/999

@@ -47,7 +47,7 @@ El contexto del dominio y la arquitectura está en `openspec/config.yaml`. La co
 
 ### 2.1 Ramas y PRs
 
-**Un change de OpenSpec = una rama = un PR.** El orden de los PRs está en [`docs/plan-de-prs.md`](docs/plan-de-prs.md).
+**Un change de OpenSpec = una rama = un PR.** El orden y el estado de los PRs se llevan en notas locales no versionadas dentro de `.local/` (ignorada por git): consultalas si existen, actualizalas cuando cambie el estado de un PR y nunca agregues su contenido al repo.
 
 - Antes de empezar un `apply`, verificá con `git branch --show-current` que el autor está en la rama del change (`feat/<nombre-del-change>`, o `chore/…` si no agrega comportamiento). Si está en `main` o en otra rama, **frená y pedile que cambie**; no la cambies vos.
 - La rama se crea desde `main` actualizado, después de mergear el PR anterior. Nunca se suman commits a una rama cuyo PR ya se mergeó: se abre una nueva.

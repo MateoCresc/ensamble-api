@@ -2,7 +2,6 @@
 
 <!-- Nombre del change y link a su carpeta archivada, p. ej. openspec/changes/archive/AAAA-MM-DD-clientes/ -->
 - Change:
-- PR del plan (`docs/plan-de-prs.md`): #
 
 ## Qué agrega
 

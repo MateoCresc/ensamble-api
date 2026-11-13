@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Ensamble — Taller a Medida API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     API REST del taller de fabricación a medida (carpintería / herrería).
     Gestiona clientes, materiales y encargos con arquitectura en capas.
@@ -14,6 +14,8 @@ servers:
 tags:
   - name: Estado
     description: Salud del servicio
+  - name: Clientes
+    description: Personas o empresas que encargan trabajos al taller. El email es único.
 
 paths:
   /health:
@@ -43,8 +45,328 @@ paths:
                   code: INTERNAL_ERROR
                   message: Ocurrió un error inesperado en el servidor
 
+  /clientes:
+    get:
+      tags: [Clientes]
+      summary: Listar clientes
+      description: |
+        Devuelve los clientes como array. Sin parámetros, ordenados por `id` ascendente.
+        Los filtros se combinan; la paginación se aplica después de filtrar y ordenar,
+        y solo si se envía `page` o `limit`.
+
+        Los parámetros no traen valor precargado a propósito: en *Try it out* solo se envían los que completes.
+      operationId: listarClientes
+      parameters:
+        - name: nombre
+          in: query
+          description: Coincidencia parcial con el nombre, sin distinguir mayúsculas (p. ej. `ana`).
+          schema: { type: string }
+        - name: email
+          in: query
+          description: Coincidencia exacta con el email, sin distinguir mayúsculas (p. ej. `ana@mail.com`).
+          schema: { type: string }
+        - name: sort
+          in: query
+          description: Campo de orden. Con prefijo `-` ordena descendente (p. ej. `-nombre`).
+          schema:
+            type: string
+            enum: [id, -id, nombre, -nombre, email, -email]
+        - name: page
+          in: query
+          description: Número de página (por defecto 1 si se envía `limit`).
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          description: Cantidad por página (por defecto 20 si se envía `page`).
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Listado de clientes (vacío si no hay coincidencias)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cliente"
+              example:
+                - id: 1
+                  nombre: Ana Pérez
+                  email: ana@mail.com
+                  telefono: "1155550000"
+                - id: 2
+                  nombre: Mariana Gómez
+                  email: mariana@mail.com
+                  telefono: null
+        "400":
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: sort
+                      message: "sort debe ser uno de: id, -id, nombre, -nombre, email, -email"
+    post:
+      tags: [Clientes]
+      summary: Crear cliente
+      description: Da de alta un cliente. El email se guarda en minúsculas y no puede repetirse. Un `id` enviado se ignora.
+      operationId: crearCliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClienteInput"
+            example:
+              nombre: Ana Pérez
+              email: ana@mail.com
+              telefono: "1155550000"
+      responses:
+        "201":
+          description: Cliente creado
+          headers:
+            Location:
+              description: URL del cliente creado
+              schema: { type: string }
+              example: /clientes/1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cliente"
+              example:
+                id: 1
+                nombre: Ana Pérez
+                email: ana@mail.com
+                telefono: "1155550000"
+        "400":
+          description: Cuerpo inválido (un detalle por campo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: nombre
+                      message: El nombre es obligatorio y debe ser texto
+                    - field: email
+                      message: El email no tiene un formato válido
+        "409":
+          description: Ya existe un cliente con ese email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: EMAIL_DUPLICADO
+                  message: Ya existe un cliente con ese email
+
+  /clientes/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ClienteId"
+    get:
+      tags: [Clientes]
+      summary: Obtener cliente por id
+      operationId: obtenerCliente
+      responses:
+        "200":
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cliente"
+              example:
+                id: 1
+                nombre: Ana Pérez
+                email: ana@mail.com
+                telefono: "1155550000"
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: El id debe ser un número
+        "404":
+          description: No existe un cliente con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: CLIENTE_NO_ENCONTRADO
+                  message: No existe un cliente con id 999
+    put:
+      tags: [Clientes]
+      summary: Actualizar cliente (parcial)
+      description: Modifica solo los campos enviados. Hay que enviar al menos uno. `telefono` en `null` lo borra.
+      operationId: actualizarCliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClienteUpdate"
+            example:
+              telefono: "1166660000"
+      responses:
+        "200":
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cliente"
+              example:
+                id: 1
+                nombre: Ana Pérez
+                email: ana@mail.com
+                telefono: "1166660000"
+        "400":
+          description: Id o cuerpo inválidos (incluye body sin campos)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: body
+                      message: "Enviá al menos uno de estos campos: nombre, email o telefono"
+        "404":
+          description: No existe un cliente con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: CLIENTE_NO_ENCONTRADO
+                  message: No existe un cliente con id 999
+        "409":
+          description: El email pertenece a otro cliente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: EMAIL_DUPLICADO
+                  message: Ya existe un cliente con ese email
+    delete:
+      tags: [Clientes]
+      summary: Eliminar cliente
+      operationId: eliminarCliente
+      responses:
+        "204":
+          description: Cliente eliminado (sin cuerpo)
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: El id debe ser un número
+        "404":
+          description: No existe un cliente con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: CLIENTE_NO_ENCONTRADO
+                  message: No existe un cliente con id 999
+
 components:
+  parameters:
+    ClienteId:
+      name: id
+      in: path
+      required: true
+      description: Id entero del cliente
+      schema: { type: integer, minimum: 1 }
+      example: 1
+
   schemas:
+    Cliente:
+      type: object
+      required: [id, nombre, email, telefono]
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Ana Pérez
+        email:
+          type: string
+          format: email
+          description: Único, guardado en minúsculas
+          example: ana@mail.com
+        telefono:
+          type: string
+          nullable: true
+          example: "1155550000"
+
+    ClienteInput:
+      type: object
+      required: [nombre, email]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Ana Pérez
+        email:
+          type: string
+          format: email
+          example: ana@mail.com
+        telefono:
+          type: string
+          nullable: true
+          pattern: "^[0-9+\\-\\s]{6,20}$"
+          description: De 6 a 20 caracteres (dígitos, espacios, + o -). Opcional.
+          example: "1155550000"
+
+    ClienteUpdate:
+      type: object
+      minProperties: 1
+      description: Al menos uno de los campos.
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        telefono:
+          type: string
+          nullable: true
+          pattern: "^[0-9+\\-\\s]{6,20}$"
+
     Health:
       type: object
       required: [status, persistence]
