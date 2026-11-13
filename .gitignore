@@ -4,3 +4,4 @@ node_modules/
 *.log
 coverage/
 .claude/settings.local.json
+.local/

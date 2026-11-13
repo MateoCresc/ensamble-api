@@ -44,7 +44,7 @@ context: |
     - Tests unitarios de casos de uso con DAO en memoria y EventEmitter inyectados.
     - Tests HTTP sobre createApp() (app.js) sin levantar un puerto.
   Git: los agentes no hacen commits; el autor commitea manualmente al final de cada grupo de tareas.
-  Ramas y PRs: un change = una rama (feat/<change> o chore/<change>) = un PR a main; orden en docs/plan-de-prs.md.
+  Ramas y PRs: un change = una rama (feat/<change> o chore/<change>) = un PR a main; orden y estado en las notas locales de .local/ (no versionadas).
     El archive del change es el último commit del PR.
 
   Referencia teórica: repo de la cursada osvaldoojeda-ort/jueves_tp2a_ya (una rama por clase).

@@ -11,6 +11,21 @@ API REST para un taller de fabricación a medida (carpintería / herrería), con
 - Estados de un encargo: `presupuestado → confirmado → en_produccion → entregado`, o `cancelado`.
 - Regla central: al confirmar un encargo se descuenta el stock de todos sus materiales de forma atómica; si falta stock responde `409 STOCK_INSUFICIENTE`.
 
+### Cliente
+
+Persona o empresa que encarga trabajos al taller. Recurso: `/clientes`.
+
+| Campo      | Tipo            | Reglas                                                              |
+| ---------- | --------------- | ------------------------------------------------------------------- |
+| `id`       | entero          | Lo asigna el sistema; un `id` enviado en el body se ignora          |
+| `nombre`   | texto           | Obligatorio, de 2 a 100 caracteres                                  |
+| `email`    | texto           | Obligatorio, formato válido, **único**; se guarda en minúsculas     |
+| `telefono` | texto o `null`  | Opcional, de 6 a 20 caracteres (dígitos, espacios, `+` o `-`)       |
+
+- **Regla de negocio (caso de uso):** no puede haber dos clientes con el mismo email, sin distinguir mayúsculas, ni al crear ni al actualizar → `409 EMAIL_DUPLICADO`.
+- **Actualización parcial:** `PUT /clientes/:id` modifica solo los campos enviados (al menos uno).
+- **Listado:** `GET /clientes` acepta `nombre` (parcial), `email` (exacto), `sort` (`id`, `nombre`, `email`, con `-` para descendente) y `page` / `limit` (máximo 100). Ejemplo: `GET /clientes?nombre=ana&sort=-nombre&page=1&limit=10`.
+
 ## Arquitectura
 
 ```
@@ -51,6 +66,8 @@ npm start        # o: npm run dev (reinicia al guardar)
 | `PERSISTENCE_TYPE` | `memory`, `sequelize`       | `memory`      | Tipo de persistencia de la API |
 
 ## Endpoints
+
+El detalle de todos los endpoints (parámetros, cuerpos, ejemplos y errores) está en Swagger UI: **`/api-docs`**. Acá solo los de infraestructura:
 
 | Método | Ruta             | Descripción                                    |
 | ------ | ---------------- | ---------------------------------------------- |
