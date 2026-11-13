@@ -32,7 +32,7 @@ index.js → container/ → routes/ → controllers/ → usecases/ → dao/
 
 ## Requisitos
 
-- Node.js **20.6 o superior** (se usa `node --env-file`).
+- Node.js **22.12 o superior** (lo exige Vitest 5; la app usa `node --env-file`, disponible desde Node 20.6).
 
 ## Instalación
 
