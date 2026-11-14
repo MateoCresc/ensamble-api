@@ -86,3 +86,47 @@ DELETE {{baseUrl}}/clientes/2
 
 ### Eliminar inexistente → 404 CLIENTE_NO_ENCONTRADO
 DELETE {{baseUrl}}/clientes/999
+
+# ─── Materiales ────────────────────────────────────────────────────────────
+
+### Crear material → 201 + Location
+POST {{baseUrl}}/materiales
+Content-Type: application/json
+
+{ "nombre": "Tablón de pino", "unidad": "m", "stock": 12.5, "stockMinimo": 3 }
+
+### Crear material con valores por defecto (stock 0) → 201
+POST {{baseUrl}}/materiales
+Content-Type: application/json
+
+{ "nombre": "Clavos", "unidad": "kg" }
+
+### Nombre repetido (mayúsculas y espacios) → 409 MATERIAL_DUPLICADO
+POST {{baseUrl}}/materiales
+Content-Type: application/json
+
+{ "nombre": " TABLÓN DE PINO ", "unidad": "m" }
+
+### Unidad inválida y stock con 3 decimales → 400 VALIDATION_ERROR
+POST {{baseUrl}}/materiales
+Content-Type: application/json
+
+{ "nombre": "Lija", "unidad": "caja", "stock": 1.005 }
+
+### Materiales con bajo stock → 200
+GET {{baseUrl}}/materiales?bajoStock=true
+
+### Ordenar por stock descendente → 200
+GET {{baseUrl}}/materiales?sort=-stock
+
+### Obtener material → 200
+GET {{baseUrl}}/materiales/1
+
+### Reponer stock → 200
+PUT {{baseUrl}}/materiales/2
+Content-Type: application/json
+
+{ "stock": 25 }
+
+### Eliminar material → 204
+DELETE {{baseUrl}}/materiales/2

@@ -19,4 +19,8 @@ export const PORT = toInt(process.env.PORT, 3000);
 export const NODE_ENV = process.env.NODE_ENV ?? "development";
 export const PERSISTENCE_TYPE = persistence;
 
-export default { PORT, NODE_ENV, PERSISTENCE_TYPE };
+// Persistencia Sequelize (design D7 de persistencia-materiales)
+export const DB_STORAGE = process.env.DB_STORAGE?.trim() || "./ensamble.sqlite";
+export const DB_LOGGING = (process.env.DB_LOGGING ?? "false").trim().toLowerCase() === "true";
+
+export default { PORT, NODE_ENV, PERSISTENCE_TYPE, DB_STORAGE, DB_LOGGING };
