@@ -12,11 +12,12 @@ El contexto del dominio y la arquitectura está en `openspec/config.yaml`. La co
 - **Nunca** ejecutes `git add`, `git commit`, `git push`, `git merge`, `git rebase`, `git reset`, `git stash`, `git checkout`, `git switch`, `git tag` ni nada que modifique el historial, el staging o la rama activa.
 - **Nunca** abras, mergees ni cierres PRs (`gh pr create`, `gh pr merge`, etc.). Podés redactar la descripción del PR para que el autor la pegue.
 - Podés usar libremente comandos de lectura: `git status`, `git diff`, `git log`, `git show`, `git blame`.
-- Al terminar cada grupo de tareas, **detenete** y entregá:
-  1. Resumen de archivos creados/modificados.
-  2. Resultado de `npm test`.
-  3. Un mensaje de commit sugerido en formato Conventional Commits (ver §6).
-- El autor revisa el diff y commitea manualmente. No sigas con el próximo grupo hasta que lo pida.
+- Por defecto se aplica **el change completo** de una vez (todos sus grupos, cada uno con su ciclo TDD). Si el autor pide ir grupo por grupo, se frena al final de cada grupo.
+- Al terminar, **detenete** y entregá:
+  1. Resumen de lo hecho y resultado de `npm test`.
+  2. **Un commit sugerido por grupo de tareas**, cada uno con su `git add <archivos>` exacto y su mensaje en formato Conventional Commits (ver §6), en el orden en que deben hacerse. Si un archivo cambió en varios grupos, agrupalo en el primer commit que lo necesite y aclaralo.
+  3. La descripción del PR con la plantilla (ver §2.1).
+- El autor revisa el diff y commitea manualmente.
 
 ### 1.2 Alcance
 - Trabajá solo dentro del change de OpenSpec activo y de las tareas que el autor pidió. Si detectás algo fuera de alcance (un bug, una mejora), anotalo en el resumen; no lo arregles.
@@ -51,9 +52,10 @@ El contexto del dominio y la arquitectura está en `openspec/config.yaml`. La co
 
 - Antes de empezar un `apply`, verificá con `git branch --show-current` que el autor está en la rama del change (`feat/<nombre-del-change>`, o `chore/…` si no agrega comportamiento). Si está en `main` o en otra rama, **frená y pedile que cambie**; no la cambies vos.
 - La rama se crea desde `main` actualizado, después de mergear el PR anterior. Nunca se suman commits a una rama cuyo PR ya se mergeó: se abre una nueva.
-- Dentro del PR va un commit por grupo de tareas y, como último commit, el `/opsx:archive` del change, para que `openspec/specs/` en `main` refleje siempre lo que está mergeado.
+- Dentro del PR van **varios commits progresivos** (uno por grupo de tareas, idealmente 3 a 6) y, como último commit, el `/opsx:archive` del change, para que `openspec/specs/` en `main` refleje siempre lo que está mergeado.
+- Los PRs se mergean **sin squash** (merge commit): la consigna evalúa el historial de commits progresivos.
 - Un PR se puede abrir cuando todas las tareas del change están tildadas, `npm test` está en verde y `openspec validate --all --strict` no reporta errores. El CI lo vuelve a verificar.
-- Al cerrar el último grupo, además del mensaje de commit, entregá una descripción de PR siguiendo `.github/pull_request_template.md`.
+- Al cerrar el change, además de los commits, entregá una descripción de PR siguiendo `.github/pull_request_template.md`.
 
 Cada escenario (`#### Scenario`) de una spec se traduce en al menos un test. El nombre del test referencia el escenario.
 
@@ -153,12 +155,14 @@ Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`. Alcance = entidad o �
 
 ## 7. Definición de terminado (por grupo de tareas)
 
+Cada grupo, aunque se aplique el change completo de corrido:
+
 - [ ] Tests escritos antes del código, vistos en rojo y luego en verde.
 - [ ] `npm test` en verde.
 - [ ] Escenarios de la spec cubiertos por tests.
 - [ ] `docs/openapi.yaml` y `requests.http` actualizados si hubo endpoints.
 - [ ] Tareas tildadas en `tasks.md`.
-- [ ] Resumen + mensaje de commit sugerido entregados. **Sin commitear.**
+- [ ] Archivos del grupo identificados para su commit. **Sin commitear.**
 
 Y para el PR (al cerrar el change):
 
