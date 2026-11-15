@@ -58,7 +58,8 @@ rules:
     - Tareas chicas, pensadas para commits progresivos (un commit por grupo de tareas)
     - Seguir TDD dentro de cada grupo - primero la tarea "escribir test que falla" que nombra el escenario de la spec, después la tarea de implementación que lo hace pasar
     - Cada grupo termina con npm test en verde y con docs/openapi.yaml y requests.http actualizados si agrega endpoints
-    - Cerrar cada grupo con una tarea de "detenerse y proponer mensaje de commit" (sin commitear)
+    - Cada grupo es un commit - indicar en la última tarea del grupo los archivos que lo componen
+    - El agente aplica el change completo y frena solo al final, entregando un commit sugerido por grupo (sin commitear)
     - El grupo 1 verifica que el autor está en la rama feat/<change> creada desde main actualizado
     - En Workflow follow-up incluir - archivar el change como último commit del PR y redactar la descripción del PR con la plantilla
     - Incluir una tarea de verificación manual (requests o Swagger) y, cuando aplique, de actualización de docs/openapi.yaml

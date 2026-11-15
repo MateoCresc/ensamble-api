@@ -1,9 +1,8 @@
 import { z } from "zod";
+import { idParamSchema, paginacion, sortSchema } from "./comunes.schema.js";
 
 // Schemas de entrada de Clientes (design D4). Validan forma y normalizan; las reglas de negocio
 // (por ejemplo, email único) viven en los casos de uso.
-
-const SORTS = ["id", "-id", "nombre", "-nombre", "email", "-email"];
 
 const fields = {
   nombre: z
@@ -24,12 +23,6 @@ const fields = {
     .nullable(),
 };
 
-const entero = (campo) =>
-  z.coerce
-    .number({ error: `${campo} debe ser un número` })
-    .int(`${campo} debe ser un número entero`)
-    .positive(`${campo} debe ser mayor a 0`);
-
 // POST /clientes
 export const crearClienteSchema = z.object({
   nombre: fields.nombre,
@@ -49,15 +42,12 @@ export const actualizarClienteSchema = z
   });
 
 // /clientes/:id
-export const clienteIdParamSchema = z.object({
-  id: entero("El id"),
-});
+export const clienteIdParamSchema = idParamSchema;
 
 // GET /clientes — filtros, orden y paginación
 export const listarClientesQuerySchema = z.object({
   nombre: z.string().trim().min(1, "El filtro nombre no puede estar vacío").optional(),
   email: z.string().trim().min(1, "El filtro email no puede estar vacío").optional(),
-  sort: z.enum(SORTS, { error: `sort debe ser uno de: ${SORTS.join(", ")}` }).optional(),
-  page: entero("page").optional(),
-  limit: entero("limit").max(100, "limit no puede ser mayor a 100").optional(),
+  sort: sortSchema(["id", "nombre", "email"]),
+  ...paginacion,
 });

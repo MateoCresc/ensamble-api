@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Ensamble — Taller a Medida API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     API REST del taller de fabricación a medida (carpintería / herrería).
     Gestiona clientes, materiales y encargos con arquitectura en capas.
@@ -16,6 +16,8 @@ tags:
     description: Salud del servicio
   - name: Clientes
     description: Personas o empresas que encargan trabajos al taller. El email es único.
+  - name: Materiales
+    description: Insumos del taller con su unidad de medida y stock. El nombre es único.
 
 paths:
   /health:
@@ -299,6 +301,268 @@ paths:
                   code: CLIENTE_NO_ENCONTRADO
                   message: No existe un cliente con id 999
 
+  /materiales:
+    get:
+      tags: [Materiales]
+      summary: Listar materiales
+      description: |
+        Devuelve los materiales como array, ordenados por `id` sin parámetros. Los filtros se combinan;
+        la paginación se aplica después de filtrar y ordenar, y solo si se envía `page` o `limit`.
+
+        Los parámetros no traen valor precargado a propósito: en *Try it out* solo se envían los que completes.
+      operationId: listarMateriales
+      parameters:
+        - name: nombre
+          in: query
+          description: Coincidencia parcial con el nombre, sin distinguir mayúsculas (p. ej. `pino`).
+          schema: { type: string }
+        - name: unidad
+          in: query
+          description: Unidad de medida exacta.
+          schema:
+            $ref: "#/components/schemas/Unidad"
+        - name: bajoStock
+          in: query
+          description: "`true`: stock menor o igual al stock mínimo. `false`: el resto."
+          schema: { type: string, enum: ["true", "false"] }
+        - name: sort
+          in: query
+          description: Campo de orden; con prefijo `-` ordena descendente (p. ej. `-stock`).
+          schema:
+            type: string
+            enum: [id, -id, nombre, -nombre, stock, -stock]
+        - name: page
+          in: query
+          description: Número de página (por defecto 1 si se envía `limit`).
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          description: Cantidad por página (por defecto 20 si se envía `page`).
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Listado de materiales
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Material"
+              example:
+                - id: 1
+                  nombre: Tablón de pino
+                  unidad: m
+                  stock: 2
+                  stockMinimo: 5
+                - id: 2
+                  nombre: Caño de hierro
+                  unidad: m
+                  stock: 10
+                  stockMinimo: 2
+        "400":
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: bajoStock
+                      message: "bajoStock debe ser 'true' o 'false'"
+    post:
+      tags: [Materiales]
+      summary: Crear material
+      description: Da de alta un material. El nombre no puede repetirse (sin distinguir mayúsculas ni espacios en los extremos). `stock` y `stockMinimo` admiten hasta 2 decimales y por defecto son 0.
+      operationId: crearMaterial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaterialInput"
+            example:
+              nombre: Tablón de pino
+              unidad: m
+              stock: 12.5
+              stockMinimo: 3
+      responses:
+        "201":
+          description: Material creado
+          headers:
+            Location:
+              description: URL del material creado
+              schema: { type: string }
+              example: /materiales/1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+              example:
+                id: 1
+                nombre: Tablón de pino
+                unidad: m
+                stock: 12.5
+                stockMinimo: 3
+        "400":
+          description: Cuerpo inválido (un detalle por campo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: unidad
+                      message: "La unidad debe ser una de: unidad, m, m2, kg, l"
+        "409":
+          description: Ya existe un material con ese nombre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_DUPLICADO
+                  message: "Ya existe un material con ese nombre"
+
+  /materiales/{id}:
+    parameters:
+      - $ref: "#/components/parameters/MaterialId"
+    get:
+      tags: [Materiales]
+      summary: Obtener material por id
+      operationId: obtenerMaterial
+      responses:
+        "200":
+          description: Material encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+              example:
+                id: 1
+                nombre: Tablón de pino
+                unidad: m
+                stock: 12.5
+                stockMinimo: 3
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un material con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_NO_ENCONTRADO
+                  message: "No existe un material con id 999"
+    put:
+      tags: [Materiales]
+      summary: Actualizar material (parcial)
+      description: Modifica solo los campos enviados (al menos uno). Sirve para reponer stock.
+      operationId: actualizarMaterial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaterialUpdate"
+            example:
+              stock: 20
+      responses:
+        "200":
+          description: Material actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+              example:
+                id: 1
+                nombre: Tablón de pino
+                unidad: m
+                stock: 20
+                stockMinimo: 3
+        "400":
+          description: Id o cuerpo inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: stock
+                      message: "El stock no puede ser negativo"
+        "404":
+          description: No existe un material con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_NO_ENCONTRADO
+                  message: "No existe un material con id 999"
+        "409":
+          description: Ya existe un material con ese nombre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_DUPLICADO
+                  message: "Ya existe un material con ese nombre"
+    delete:
+      tags: [Materiales]
+      summary: Eliminar material
+      operationId: eliminarMaterial
+      responses:
+        "204":
+          description: Material eliminado (sin cuerpo)
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un material con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_NO_ENCONTRADO
+                  message: "No existe un material con id 999"
+
 components:
   parameters:
     ClienteId:
@@ -306,6 +570,13 @@ components:
       in: path
       required: true
       description: Id entero del cliente
+      schema: { type: integer, minimum: 1 }
+      example: 1
+    MaterialId:
+      name: id
+      in: path
+      required: true
+      description: Id entero del material
       schema: { type: integer, minimum: 1 }
       example: 1
 
@@ -377,6 +648,76 @@ components:
         persistence:
           type: string
           enum: [memory, sequelize]
+
+    Unidad:
+      type: string
+      enum: [unidad, m, m2, kg, l]
+      description: Unidad de medida del material
+
+    Material:
+      type: object
+      required: [id, nombre, unidad, stock, stockMinimo]
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Tablón de pino
+        unidad:
+          $ref: "#/components/schemas/Unidad"
+        stock:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          example: 12.5
+        stockMinimo:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          example: 3
+
+    MaterialInput:
+      type: object
+      required: [nombre, unidad]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Único, sin distinguir mayúsculas ni espacios en los extremos
+        unidad:
+          $ref: "#/components/schemas/Unidad"
+        stock:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          default: 0
+        stockMinimo:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          default: 0
+
+    MaterialUpdate:
+      type: object
+      minProperties: 1
+      description: Al menos uno de los campos.
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+        unidad:
+          $ref: "#/components/schemas/Unidad"
+        stock:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+        stockMinimo:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
 
     Error:
       type: object

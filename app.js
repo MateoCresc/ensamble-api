@@ -13,7 +13,10 @@ export const createApp = async (options = {}) => {
   app.use(logger);
   app.use(express.json());
   app.use(makeDocsRouter());
-  app.use(await buildContainer(options));
+  const { router, cerrar } = await buildContainer(options);
+  app.use(router);
+  // Permite cerrar la conexión a la base desde index.js (apagado) o desde los tests.
+  app.locals.cerrar = cerrar;
   app.use(notFound);
   app.use(errorHandler);
 

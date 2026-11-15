@@ -1,7 +1,11 @@
 import { createApp } from "../../app.js";
 
-// Arma la app completa para tests HTTP con persistencia en memoria por defecto.
-// Cualquier opción recibida (p. ej. persistenceType) pisa el valor por defecto.
-export const buildTestApp = (options = {}) => createApp({ persistenceType: "memory", ...options });
+// Modos de persistencia en los que corren los tests HTTP (design D6 de persistencia-materiales).
+export const MODOS_PERSISTENCIA = ["memory", "sequelize"];
+
+// Arma la app completa para tests HTTP. Por defecto en memoria; en modo sequelize usa una base
+// SQLite en memoria (":memory:"), nueva y vacía para cada app. Cualquier opción recibida pisa los defaults.
+export const buildTestApp = (options = {}) =>
+  createApp({ persistenceType: "memory", dbStorage: ":memory:", ...options });
 
 export default buildTestApp;
