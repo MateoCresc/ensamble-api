@@ -130,3 +130,75 @@ Content-Type: application/json
 
 ### Eliminar material → 204
 DELETE {{baseUrl}}/materiales/2
+
+# ─── Encargos: recorrido completo ──────────────────────────────────────────
+# Requiere el cliente 1 y los materiales 1 (Tablón de pino) y 3 (Clavos) de los pedidos anteriores.
+
+### Crear encargo presupuestado con materiales → 201
+POST {{baseUrl}}/encargos
+Content-Type: application/json
+
+{ "clienteId": 1, "descripcion": "Mesa de comedor", "fechaEntregaEstimada": "2026-12-20", "materiales": [{ "materialId": 1, "cantidad": 10 }] }
+
+### Encargo con un material inexistente → 404 MATERIAL_NO_ENCONTRADO
+POST {{baseUrl}}/encargos
+Content-Type: application/json
+
+{ "clienteId": 1, "descripcion": "Banco", "materiales": [{ "materialId": 99, "cantidad": 1 }] }
+
+### Encargos del cliente 1 → 200
+GET {{baseUrl}}/encargos?clienteId=1
+
+### Reemplazar materiales mientras está presupuestado → 200
+PUT {{baseUrl}}/encargos/1
+Content-Type: application/json
+
+{ "materiales": [{ "materialId": 1, "cantidad": 10 }, { "materialId": 3, "cantidad": 0.5 }] }
+
+### Confirmar: descuenta stock (y avisa stock bajo del tablón) → 200
+PUT {{baseUrl}}/encargos/1/confirmar
+
+### Ver el stock descontado → 200
+GET {{baseUrl}}/materiales?bajoStock=true
+
+### Confirmar de nuevo → 409 TRANSICION_INVALIDA
+PUT {{baseUrl}}/encargos/1/confirmar
+
+### Editar un encargo confirmado → 409 ENCARGO_NO_EDITABLE
+PUT {{baseUrl}}/encargos/1
+Content-Type: application/json
+
+{ "descripcion": "Otra cosa" }
+
+### Borrar el cliente con encargos → 409 CLIENTE_CON_ENCARGOS
+DELETE {{baseUrl}}/clientes/1
+
+### Borrar un material usado → 409 MATERIAL_EN_USO
+DELETE {{baseUrl}}/materiales/1
+
+### Cancelar el confirmado: repone stock → 200
+PUT {{baseUrl}}/encargos/1/cancelar
+
+### Encargo que pide más de lo que hay → confirmar da 409 STOCK_INSUFICIENTE
+POST {{baseUrl}}/encargos
+Content-Type: application/json
+
+{ "clienteId": 1, "descripcion": "Galpón", "materiales": [{ "materialId": 1, "cantidad": 999 }] }
+
+###
+PUT {{baseUrl}}/encargos/2/confirmar
+
+### Recorrido de producción: crear, confirmar, iniciar y entregar
+POST {{baseUrl}}/encargos
+Content-Type: application/json
+
+{ "clienteId": 1, "descripcion": "Estante", "materiales": [{ "materialId": 3, "cantidad": 0.25 }] }
+
+###
+PUT {{baseUrl}}/encargos/3/confirmar
+
+###
+PUT {{baseUrl}}/encargos/3/iniciar
+
+###
+PUT {{baseUrl}}/encargos/3/entregar

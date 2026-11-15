@@ -5,8 +5,9 @@ import { actualizarMaterial } from "./actualizarMaterial.js";
 import { eliminarMaterial } from "./eliminarMaterial.js";
 
 // Factory de casos de uso de Materiales: recibe las dependencias como objeto.
-export const makeMaterialesUseCases = ({ materialesDao }) => {
-  const deps = { materialesDao };
+export const makeMaterialesUseCases = ({ materialesDao, encargosDao }) => {
+  // encargosDao: para la regla de baja (no se elimina si figura en encargos).
+  const deps = { materialesDao, encargosDao };
 
   return {
     listarMateriales: (filtros) => listarMateriales(filtros, deps),

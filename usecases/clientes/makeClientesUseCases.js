@@ -6,8 +6,9 @@ import { eliminarCliente } from "./eliminarCliente.js";
 
 // Factory de casos de uso de Clientes.
 // Recibe las dependencias como objeto (design D6): sumar el bus de eventos u otro DAO no cambia la firma.
-export const makeClientesUseCases = ({ clientesDao }) => {
-  const deps = { clientesDao };
+export const makeClientesUseCases = ({ clientesDao, encargosDao }) => {
+  // encargosDao: para la regla de baja (no se elimina si figura en encargos).
+  const deps = { clientesDao, encargosDao };
 
   return {
     listarClientes: (filtros) => listarClientes(filtros, deps),

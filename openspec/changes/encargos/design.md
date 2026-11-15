@@ -32,10 +32,10 @@ Ver proposal.md - Why. Parte de lo que deja `persistencia-materiales`: `createDa
 
 ### D4. Confirmar y cancelar: chequeo en el caso de uso + atomicidad en el DAO
 1. El caso de uso valida existencia (404), transición (409), que tenga materiales (409) y calcula los faltantes comparando cantidad contra stock: si hay alguno lanza `STOCK_INSUFICIENTE` con el detalle por material. Esto da el mensaje útil.
-2. Luego llama a `encargosDao.confirmar(id)` / `encargosDao.cancelar(id)`, que aplican estado + stock **atómicamente**:
+2. Luego llama a `encargosDao.cambiarEstado(id, { desde, hacia, movimientos })` —un único método para las cuatro acciones; `movimientos` son `{ materialId, delta }` calculados por el caso de uso (negativos al confirmar, positivos al cancelar un confirmado, ninguno al iniciar o entregar)— que aplica estado + stock **atómicamente**. *(Ajuste durante el apply: el diseño original proponía métodos `confirmar` y `cancelar` separados; uno genérico evita duplicar la lógica transaccional.)*
    - Sequelize: `sequelize.transaction()` con `UPDATE encargos SET estado=… WHERE id=? AND estado IN (…)` y, por cada material, `UPDATE materiales SET stock = stock - ? WHERE id=? AND stock >= ?` (o `+` al reponer). Si alguna actualización afecta 0 filas, se lanza dentro de la transacción y se deshace todo; el DAO devuelve `null`.
    - Memoria: verifica estado y stocks y aplica los cambios **sin ningún `await` entre la verificación y la escritura**, a través de un método síncrono-en-su-núcleo `materialesDao.ajustarStock(movimientos)` que es todo-o-nada.
-3. Si el DAO devuelve `null` (otro pedido cambió el stock o el estado entre el chequeo y la escritura), el caso de uso relee y vuelve a lanzar el 409 que corresponda.
+3. Si el DAO devuelve `null` (otro pedido cambió el stock o el estado entre el chequeo y la escritura), el caso de uso relee y vuelve a lanzar el 409 que corresponda; si la relectura no explica la falla, lanza 409 `CONFLICTO_CONCURRENTE`.
 El DAO de encargos puede tocar la tabla de materiales porque la operación es una sola unidad de trabajo, igual que `lend()` toca `books` en la cursada.
 *Alternativa:* un servicio de "unidad de trabajo" que coordine dos DAO; más general, pero agrega una abstracción que el TP no necesita.
 

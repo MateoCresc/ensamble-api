@@ -4,15 +4,21 @@ import { ClientesMemoryDao } from "./clientes/clientes.memory.dao.js";
 import { ClientesSequelizeDao } from "./clientes/clientes.sequelize.dao.js";
 import { MaterialesMemoryDao } from "./materiales/materiales.memory.dao.js";
 import { MaterialesSequelizeDao } from "./materiales/materiales.sequelize.dao.js";
+import { EncargosMemoryDao } from "./encargos/encargos.memory.dao.js";
+import { EncargosSequelizeDao } from "./encargos/encargos.sequelize.dao.js";
 
 // Factory de DAOs (consigna 2.4, design D2): elige los adaptadores según persistenceType.
 // Es el único lugar que conoce las implementaciones concretas de persistencia.
 // Devuelve también cerrar(), para liberar la conexión al apagar el servidor o al terminar un test.
 export const createDaos = async ({ persistenceType, dbStorage, dbLogging = false }) => {
   if (persistenceType === "memory") {
+    const clientesDao = new ClientesMemoryDao();
+    const materialesDao = new MaterialesMemoryDao();
     return {
-      clientesDao: new ClientesMemoryDao(),
-      materialesDao: new MaterialesMemoryDao(),
+      clientesDao,
+      materialesDao,
+      // En memoria, encargos colabora con los otros DAO para armar relaciones y mover stock.
+      encargosDao: new EncargosMemoryDao({ clientesDao, materialesDao }),
       cerrar: async () => {},
     };
   }
@@ -26,6 +32,7 @@ export const createDaos = async ({ persistenceType, dbStorage, dbLogging = false
     return {
       clientesDao: new ClientesSequelizeDao(modelos),
       materialesDao: new MaterialesSequelizeDao(modelos),
+      encargosDao: new EncargosSequelizeDao(modelos),
       cerrar: () => sequelize.close(),
     };
   }

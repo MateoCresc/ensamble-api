@@ -1,4 +1,4 @@
-import { UniqueConstraintError } from "sequelize";
+import { UniqueConstraintError, ForeignKeyConstraintError } from "sequelize";
 import { AppError } from "../../errors/AppError.js";
 import { nombreNormalizado } from "./nombreNormalizado.js";
 
@@ -78,8 +78,16 @@ export class MaterialesSequelizeDao {
   }
 
   async delete(id) {
-    const borrados = await this.#Material.destroy({ where: { id: Number(id) } });
-    return borrados > 0;
+    // La FK RESTRICT de la base respalda la regla del caso de uso (design D1 de encargos).
+    try {
+      const borrados = await this.#Material.destroy({ where: { id: Number(id) } });
+      return borrados > 0;
+    } catch (error) {
+      if (error instanceof ForeignKeyConstraintError) {
+        throw new AppError("MATERIAL_EN_USO", "No se puede eliminar un material que figura en encargos", 409);
+      }
+      throw error;
+    }
   }
 }
 
