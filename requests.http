@@ -132,7 +132,14 @@ Content-Type: application/json
 DELETE {{baseUrl}}/materiales/2
 
 # ─── Encargos: recorrido completo ──────────────────────────────────────────
-# Requiere el cliente 1 y los materiales 1 (Tablón de pino) y 3 (Clavos) de los pedidos anteriores.
+# Usa el cliente 1 y el material 1 (Tablón de pino) de las secciones anteriores; ejecutalo en orden sobre
+# un servidor recién iniciado (o con la base vacía) para que los ids coincidan.
+
+### Crear el material que usan los encargos (queda con id 3: el 2 se borró arriba) → 201
+POST {{baseUrl}}/materiales
+Content-Type: application/json
+
+{ "nombre": "Barniz marino", "unidad": "l", "stock": 2, "stockMinimo": 1 }
 
 ### Crear encargo presupuestado con materiales → 201
 POST {{baseUrl}}/encargos
