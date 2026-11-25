@@ -8,6 +8,9 @@
   "scripts": {
     "start": "node --env-file=.env index.js",
     "dev": "node --env-file=.env --watch index.js",
+    "dev:web": "npm --prefix web start",
+    "dev:all": "concurrently -k -n api,web -c blue,magenta \"npm run dev\" \"npm run dev:web\"",
+    "setup": "npm install && npm --prefix web install",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^5.1.0",
+    "concurrently": "10.0.7",
     "supertest": "^7.3.2",
     "vitest": "^5.1.0"
   }

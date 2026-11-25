@@ -1,0 +1,33 @@
+.materiales {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, #64748b);
+}
+
+.renglones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.renglon {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.renglon-material {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.renglon-material p-select {
+  width: 100%;
+}
+
+.renglon-cantidad {
+  width: 9rem;
+  display: flex;
+  flex-direction: column;
+}

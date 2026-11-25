@@ -29,3 +29,28 @@ jobs:
         env:
           OPENSPEC_TELEMETRY: "0"
         run: npx -y @fission-ai/openspec@latest validate --all --strict
+
+  web:
+    name: Interfaz web (tests y build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Angular 22 exige Node ^22.22.3 || ^24.15.0; "22" resuelve a la última 22.x.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests (Vitest + jsdom)
+        run: npm test
+
+      - name: Build
+        run: npm run build

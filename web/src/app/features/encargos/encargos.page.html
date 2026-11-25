@@ -1,0 +1,221 @@
+<h1>Encargos</h1>
+
+<div class="barra-filtros">
+  <p-select
+    inputId="filtro-estado"
+    [options]="estados"
+    optionLabel="label"
+    optionValue="value"
+    [(ngModel)]="filtroEstado"
+    (onChange)="cargar()"
+    placeholder="Todos los estados"
+    [showClear]="true"
+    ariaLabel="Filtrar por estado"
+  />
+  <p-select
+    inputId="filtro-cliente"
+    [options]="opcionesCliente()"
+    optionLabel="label"
+    optionValue="value"
+    [(ngModel)]="filtroCliente"
+    (onChange)="cargar()"
+    placeholder="Todos los clientes"
+    [showClear]="true"
+    [filter]="true"
+    filterBy="label"
+    ariaLabel="Filtrar por cliente"
+  />
+  <span class="separador"></span>
+  <p-button label="Nuevo encargo" icon="pi pi-plus" (onClick)="nuevo()" />
+</div>
+
+<p-table
+  [value]="encargos()"
+  [loading]="cargando()"
+  [paginator]="true"
+  [rows]="10"
+  [rowsPerPageOptions]="[10, 25, 50]"
+  sortField="id"
+  [sortOrder]="-1"
+  dataKey="id"
+  stripedRows
+>
+  <ng-template #header>
+    <tr>
+      <th pSortableColumn="id" style="width: 5rem">Id <p-sorticon field="id" /></th>
+      <th pSortableColumn="cliente.nombre">Cliente <p-sorticon field="cliente.nombre" /></th>
+      <th>Descripción</th>
+      <th>Materiales</th>
+      <th pSortableColumn="estado">Estado <p-sorticon field="estado" /></th>
+      <th pSortableColumn="fechaEntregaEstimada">Entrega <p-sorticon field="fechaEntregaEstimada" /></th>
+      <th style="width: 16rem">Acciones</th>
+    </tr>
+  </ng-template>
+  <ng-template #body let-encargo>
+    <tr>
+      <td>{{ encargo.id }}</td>
+      <td>{{ encargo.cliente.nombre }}</td>
+      <td>{{ encargo.descripcion }}</td>
+      <td class="materiales">{{ resumenMateriales(encargo) }}</td>
+      <td>
+        <p-tag [severity]="severidadEstado(encargo.estado)" [value]="etiquetaDe(encargo.estado)" />
+      </td>
+      <td>{{ fechaLegible(encargo.fechaEntregaEstimada) }}</td>
+      <td>
+        <div class="acciones-fila">
+          @for (a of accionesDisponibles(encargo.estado); track a) {
+            <p-button
+              [label]="etiquetaAccion[a].label"
+              [icon]="etiquetaAccion[a].icon"
+              [severity]="etiquetaAccion[a].severidad"
+              size="small"
+              [outlined]="true"
+              [disabled]="ejecutando() === encargo.id"
+              (onClick)="accion(encargo, a)"
+            />
+          }
+          @if (esEditable(encargo.estado)) {
+            <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Editar" pTooltip="Editar" (onClick)="editar(encargo)" />
+          }
+          @if (esEliminable(encargo.estado)) {
+            <p-button
+              icon="pi pi-trash"
+              severity="danger"
+              [text]="true"
+              [rounded]="true"
+              ariaLabel="Eliminar"
+              pTooltip="Eliminar"
+              (onClick)="eliminar(encargo)"
+            />
+          }
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template #emptymessage>
+    <tr>
+      <td colspan="7">No hay encargos para mostrar.</td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<p-dialog
+  [header]="editando() ? 'Editar encargo #' + editando()!.id : 'Nuevo encargo'"
+  [visible]="dialogoVisible()"
+  (visibleChange)="dialogoVisible.set($event)"
+  [modal]="true"
+  [style]="{ width: '42rem' }"
+  [draggable]="false"
+>
+  <form class="formulario" [formGroup]="form" (ngSubmit)="guardar()">
+    <div class="campo">
+      <label for="encargo-cliente">Cliente *</label>
+      <p-select
+        inputId="encargo-cliente"
+        formControlName="clienteId"
+        [options]="opcionesCliente()"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Elegí un cliente"
+        [filter]="true"
+        filterBy="label"
+        appendTo="body"
+      />
+      @if (editando()) {
+        <small>El cliente de un encargo no se puede cambiar.</small>
+      }
+      @if (invalido('clienteId')) {
+        <small class="error">Elegí un cliente.</small>
+      }
+    </div>
+    <div class="campo">
+      <label for="encargo-descripcion">Descripción *</label>
+      <input pInputText id="encargo-descripcion" formControlName="descripcion" autocomplete="off" />
+      @if (invalido('descripcion')) {
+        <small class="error">La descripción es obligatoria (3 a 500 caracteres).</small>
+      }
+    </div>
+    <div class="campo">
+      <label for="encargo-fecha">Fecha estimada de entrega</label>
+      <p-datepicker
+        inputId="encargo-fecha"
+        formControlName="fechaEntregaEstimada"
+        dateFormat="dd/mm/yy"
+        [showIcon]="true"
+        [showButtonBar]="true"
+        appendTo="body"
+        placeholder="Sin fecha"
+      />
+    </div>
+
+    <div class="campo">
+      <label>Materiales</label>
+      <div formArrayName="materiales" class="renglones">
+        @for (renglon of renglones.controls; track renglon; let i = $index) {
+          <div class="renglon" [formGroupName]="i">
+            <div class="renglon-material">
+              <p-select
+                [inputId]="'renglon-material-' + i"
+                formControlName="materialId"
+                [options]="opcionesMaterial(i)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Material"
+                [filter]="true"
+                filterBy="label"
+                appendTo="body"
+                [ariaLabel]="'Material del renglón ' + (i + 1)"
+              />
+              @if (renglonInvalido(i, 'materialId')) {
+                <small class="error">Elegí un material.</small>
+              }
+            </div>
+            <div class="renglon-cantidad">
+              <p-inputnumber
+                [inputId]="'renglon-cantidad-' + i"
+                formControlName="cantidad"
+                [min]="0"
+                [minFractionDigits]="0"
+                [maxFractionDigits]="2"
+                locale="es-AR"
+                placeholder="Cantidad"
+                [ariaLabel]="'Cantidad del renglón ' + (i + 1)"
+              />
+              @if (renglonInvalido(i, 'cantidad')) {
+                <small class="error">Mayor a 0.</small>
+              }
+            </div>
+            <p-button
+              icon="pi pi-times"
+              severity="secondary"
+              [text]="true"
+              [rounded]="true"
+              ariaLabel="Quitar renglón"
+              (onClick)="quitarRenglon(i)"
+            />
+          </div>
+        } @empty {
+          <small>Sin materiales. Un encargo sin materiales no se puede confirmar.</small>
+        }
+      </div>
+      @if (renglones.hasError('materialRepetido')) {
+        <small class="error">No se puede repetir un material.</small>
+      }
+      <div>
+        <p-button
+          label="Agregar material"
+          icon="pi pi-plus"
+          severity="secondary"
+          [outlined]="true"
+          size="small"
+          [disabled]="!puedeAgregarRenglon()"
+          (onClick)="agregarRenglon()"
+        />
+      </div>
+    </div>
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancelar" severity="secondary" [outlined]="true" (onClick)="dialogoVisible.set(false)" />
+    <p-button label="Guardar" icon="pi pi-check" (onClick)="guardar()" [loading]="guardando()" />
+  </ng-template>
+</p-dialog>

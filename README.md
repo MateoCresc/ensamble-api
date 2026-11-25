@@ -134,14 +134,41 @@ index.js → container/ → routes/ → controllers/ → usecases/ → dao/
 
 ## Requisitos
 
-- Node.js **22.12 o superior** (lo exige Vitest 5; la app usa `node --env-file`, disponible desde Node 20.6).
+- Node.js **22.22.3 o superior dentro de la 22.x, o 24.15.0 o superior dentro de la 24.x** (`^22.22.3 || ^24.15.0`). Lo exige Angular 22 para la interfaz web (`web/`); la API sola funciona desde Node 22.12 (lo exige Vitest 5).
 
 ## Instalación
 
 ```bash
-npm install
+npm run setup          # instala las dependencias de la API y de la interfaz web (web/)
 cp .env.example .env
-npm start        # o: npm run dev (reinicia al guardar)
+npm run dev:all        # levanta la API y la interfaz web juntas
+```
+
+Solo la API: `npm install` y `npm start` (o `npm run dev`, que reinicia al guardar).
+
+| URL | Qué es |
+| --- | ------ |
+| http://localhost:4200 | Interfaz web (Angular) |
+| http://localhost:3000 | API |
+| http://localhost:3000/api-docs | Swagger UI |
+
+`npm run dev:all` usa [`concurrently`](https://www.npmjs.com/package/concurrently): muestra la salida de los dos procesos con prefijo `[api]` y `[web]`, y si uno termina corta el otro. También se puede levantar cada parte por separado con `npm run dev` y `npm run dev:web`.
+
+## Interfaz web
+
+La carpeta [`web/`](web/) tiene una aplicación Angular 22 + PrimeNG, con su propio `package.json`, que opera la API sin cambiar sus contratos:
+
+- **Encargos** (pantalla inicial): listado con filtros por estado y cliente, alta y edición con renglones de materiales y botones de ciclo de vida (Confirmar, Cancelar, Iniciar, Entregar) que solo aparecen cuando el estado los permite.
+- **Clientes** y **Materiales**: listado con filtros y paginación, alta, edición y baja con confirmación; los materiales con stock bajo se marcan con una etiqueta.
+- Los errores de la API (`409 STOCK_INSUFICIENTE`, `EMAIL_DUPLICADO`, validaciones, etc.) se muestran como avisos, y un indicador en la barra muestra si la API responde (`/health`).
+
+**Proxy `/api`.** La interfaz llama siempre a `/api/<recurso>`; el servidor de desarrollo de Angular reenvía esos pedidos a `http://localhost:3000` quitando el prefijo (ver [`web/proxy.conf.json`](web/proxy.conf.json)). El prefijo evita que `/clientes` de la interfaz choque con `/clientes` de la API al recargar el navegador, y hace innecesario configurar CORS en la API.
+
+**Tests del front.** Las reglas de presentación (`web/src/app/dominio/`), la traducción de errores (`core/errores/`) y los servicios HTTP (`core/api/`) tienen tests con Vitest + jsdom:
+
+```bash
+npm --prefix web test        # una corrida
+npm --prefix web run build   # build de producción en web/dist/
 ```
 
 ## Variables de entorno

@@ -1,0 +1,21 @@
+<p-toast position="top-right" />
+<p-confirmdialog />
+
+<p-menubar [model]="secciones">
+  <ng-template #start>
+    <span class="marca"><i class="pi pi-wrench"></i> Ensamble</span>
+  </ng-template>
+  <ng-template #end>
+    <button type="button" class="indicador" (click)="verificarApi()" title="Volver a consultar /health">
+      @switch (estadoApi()) {
+        @case ('disponible') { <p-tag severity="success" icon="pi pi-check-circle" value="API disponible" /> }
+        @case ('caida') { <p-tag severity="danger" icon="pi pi-times-circle" value="API no disponible" /> }
+        @default { <p-tag severity="secondary" icon="pi pi-spin pi-spinner" value="Verificando API…" /> }
+      }
+    </button>
+  </ng-template>
+</p-menubar>
+
+<main class="contenido">
+  <router-outlet />
+</main>

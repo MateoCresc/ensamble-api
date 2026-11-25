@@ -1,0 +1,21 @@
+.marca {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-right: 1.5rem;
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.indicador {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.contenido {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}

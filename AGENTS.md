@@ -169,3 +169,22 @@ Y para el PR (al cerrar el change):
 - [ ] Todas las tareas de `tasks.md` tildadas y change archivado.
 - [ ] `openspec validate --all --strict` sin errores.
 - [ ] Descripción de PR redactada con la plantilla. **Sin abrir el PR.**
+
+---
+
+## 8. Front (`web/`)
+
+La interfaz web es un proyecto Angular + PrimeNG independiente, con su propio `package.json` y `package-lock.json` (sin workspaces). Es un cliente más de la API.
+
+- **Lenguaje**: TypeScript se permite **solo dentro de `web/`**. La API sigue en JavaScript con ES Modules.
+- **Contratos**: la UI **no cambia contratos de la API** (rutas, schemas, respuestas, CORS). Si la UI muestra que hace falta un cambio en la API, se anota como change aparte.
+- **Proxy**: la UI llama siempre a `/api/<recurso>` (constante `API_BASE` en `web/src/app/core/api/`); `web/proxy.conf.json` reenvía a `http://localhost:3000` quitando el prefijo.
+- **TDD obligatorio** (rojo → verde → refactor, como en §3) para:
+  - `web/src/app/dominio/` — reglas de presentación puras (acciones por estado, stock bajo, armado de bodies).
+  - `web/src/app/core/errores/` — traducción de errores de la API a avisos.
+  - `web/src/app/core/api/` — servicios HTTP, con `provideHttpClientTesting` + `HttpTestingController` (método, URL con `/api`, query y body).
+  - Para ver el rojo por el motivo esperado, creá primero un esqueleto del módulo cuyos métodos lancen `No implementado`.
+- **Componentes y pantallas** (`features/`, `layout/`) no llevan tests: se verifican a mano con `npm run dev:all` recorriendo los escenarios de la spec `interfaz-web`.
+- **Comandos**: `npm --prefix web test` (Vitest + jsdom vía `ng test --watch=false`) y `npm --prefix web run build`. El job `web` del CI corre ambos.
+- **Dependencias**: versiones exactas (sin `^`) y con al menos dos semanas de publicadas; agregar o actualizar una sigue pidiendo permiso (§1.3).
+- **Nombres**: dominio en español como en la API; archivos con la convención de Angular (`*.ts`, `*.spec.ts`, `*.page.ts`).

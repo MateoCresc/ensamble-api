@@ -1,0 +1,143 @@
+<h1>Materiales</h1>
+
+<div class="barra-filtros">
+  <p-iconfield>
+    <p-inputicon styleClass="pi pi-search" />
+    <input
+      pInputText
+      type="text"
+      placeholder="Buscar por nombre"
+      aria-label="Buscar por nombre"
+      #busqueda
+      (input)="filtrar(busqueda.value)"
+    />
+  </p-iconfield>
+  <span class="filtro-switch">
+    <p-toggleswitch [(ngModel)]="soloBajoStock" (onChange)="cargar()" inputId="filtro-bajo-stock" />
+    <label for="filtro-bajo-stock">Solo bajo stock</label>
+  </span>
+  <span class="separador"></span>
+  <p-button label="Nuevo material" icon="pi pi-plus" (onClick)="nuevo()" />
+</div>
+
+<p-table
+  [value]="materiales()"
+  [loading]="cargando()"
+  [paginator]="true"
+  [rows]="10"
+  [rowsPerPageOptions]="[10, 25, 50]"
+  sortField="id"
+  [sortOrder]="1"
+  dataKey="id"
+  stripedRows
+>
+  <ng-template #header>
+    <tr>
+      <th pSortableColumn="id" style="width: 6rem">Id <p-sorticon field="id" /></th>
+      <th pSortableColumn="nombre">Nombre <p-sorticon field="nombre" /></th>
+      <th>Unidad</th>
+      <th pSortableColumn="stock">Stock <p-sorticon field="stock" /></th>
+      <th pSortableColumn="stockMinimo">Stock mínimo <p-sorticon field="stockMinimo" /></th>
+      <th style="width: 8rem">Acciones</th>
+    </tr>
+  </ng-template>
+  <ng-template #body let-material>
+    <tr>
+      <td>{{ material.id }}</td>
+      <td>
+        {{ material.nombre }}
+        @if (esStockBajo(material)) {
+          <p-tag severity="warn" value="Stock bajo" icon="pi pi-exclamation-triangle" class="ml-tag" />
+        }
+      </td>
+      <td>{{ material.unidad }}</td>
+      <td>{{ material.stock }}</td>
+      <td>{{ material.stockMinimo }}</td>
+      <td>
+        <div class="acciones-fila">
+          <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Editar" pTooltip="Editar" (onClick)="editar(material)" />
+          <p-button
+            icon="pi pi-trash"
+            severity="danger"
+            [text]="true"
+            [rounded]="true"
+            ariaLabel="Eliminar"
+            pTooltip="Eliminar"
+            (onClick)="eliminar(material)"
+          />
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template #emptymessage>
+    <tr>
+      <td colspan="6">No hay materiales para mostrar.</td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<p-dialog
+  [header]="editando() ? 'Editar material #' + editando()!.id : 'Nuevo material'"
+  [visible]="dialogoVisible()"
+  (visibleChange)="dialogoVisible.set($event)"
+  [modal]="true"
+  [style]="{ width: '30rem' }"
+  [draggable]="false"
+>
+  <form class="formulario" [formGroup]="form" (ngSubmit)="guardar()">
+    <div class="campo">
+      <label for="material-nombre">Nombre *</label>
+      <input pInputText id="material-nombre" formControlName="nombre" autocomplete="off" />
+      @if (invalido('nombre')) {
+        <small class="error">El nombre es obligatorio (2 a 100 caracteres).</small>
+      }
+    </div>
+    <div class="campo">
+      <label for="material-unidad">Unidad *</label>
+      <p-select
+        inputId="material-unidad"
+        formControlName="unidad"
+        [options]="unidades"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Elegí una unidad"
+        appendTo="body"
+      />
+      @if (invalido('unidad')) {
+        <small class="error">Elegí una unidad.</small>
+      }
+    </div>
+    <div class="campo">
+      <label for="material-stock">Stock *</label>
+      <p-inputnumber
+        inputId="material-stock"
+        formControlName="stock"
+        [min]="0"
+        [minFractionDigits]="0"
+        [maxFractionDigits]="2"
+        locale="es-AR"
+      />
+      @if (invalido('stock')) {
+        <small class="error">El stock debe ser un número mayor o igual a 0.</small>
+      }
+    </div>
+    <div class="campo">
+      <label for="material-stock-minimo">Stock mínimo *</label>
+      <p-inputnumber
+        inputId="material-stock-minimo"
+        formControlName="stockMinimo"
+        [min]="0"
+        [minFractionDigits]="0"
+        [maxFractionDigits]="2"
+        locale="es-AR"
+      />
+      @if (invalido('stockMinimo')) {
+        <small class="error">El stock mínimo debe ser un número mayor o igual a 0.</small>
+      }
+    </div>
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancelar" severity="secondary" [outlined]="true" (onClick)="dialogoVisible.set(false)" />
+    <p-button label="Guardar" icon="pi pi-check" (onClick)="guardar()" [loading]="guardando()" />
+  </ng-template>
+</p-dialog>
