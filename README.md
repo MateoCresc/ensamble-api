@@ -41,6 +41,74 @@ Insumo del taller (madera, metal, herrajes). Recurso: `/materiales`.
 - **Regla de negocio (caso de uso):** nombre repetido al crear o actualizar → `409 MATERIAL_DUPLICADO`.
 - **Listado:** `GET /materiales` acepta `nombre` (parcial), `unidad`, `bajoStock=true|false` (stock menor o igual al mínimo), `sort` (`id`, `nombre`, `stock`, con `-` para descendente) y `page` / `limit`.
 
+### Encargo
+
+Trabajo que un cliente le encarga al taller. Recurso: `/encargos`.
+
+| Campo                  | Tipo                 | Reglas                                                        |
+| ---------------------- | -------------------- | ------------------------------------------------------------- |
+| `id`                   | entero               | Lo asigna el sistema                                          |
+| `clienteId`            | entero               | Cliente existente; no se puede cambiar                        |
+| `descripcion`          | texto                | De 3 a 500 caracteres                                         |
+| `estado`               | texto                | Ver ciclo de vida                                             |
+| `fechaEntregaEstimada` | `AAAA-MM-DD` o `null`| Opcional                                                      |
+| `materiales`           | lista                | `{ materialId, cantidad }`, sin repetir material, cantidad > 0 con hasta 2 decimales |
+
+Las respuestas incluyen `cliente: { id, nombre }` y cada material con su `nombre` y `unidad`.
+
+### Relaciones
+
+```mermaid
+erDiagram
+  CLIENTE ||--o{ ENCARGO : encarga
+  ENCARGO ||--o{ ENCARGO_MATERIAL : incluye
+  MATERIAL ||--o{ ENCARGO_MATERIAL : "se usa en"
+  ENCARGO_MATERIAL {
+    int encargoId
+    int materialId
+    decimal cantidad
+  }
+```
+
+- **Cliente 1 — N Encargo** (`encargos.clienteId`).
+- **Encargo N — N Material** a través de la tabla intermedia `encargo_materiales`, que guarda la `cantidad`.
+- En Sequelize las asociaciones se definen juntas en `dao/models/index.js`.
+
+### Ciclo de vida de un encargo
+
+```mermaid
+stateDiagram-v2
+  [*] --> presupuestado
+  presupuestado --> confirmado: confirmar (descuenta stock)
+  confirmado --> en_produccion: iniciar
+  en_produccion --> entregado: entregar
+  presupuestado --> cancelado: cancelar
+  confirmado --> cancelado: cancelar (repone stock)
+```
+
+Cada transición es un endpoint: `PUT /encargos/:id/confirmar`, `/cancelar`, `/iniciar` y `/entregar`. Las transiciones permitidas están en un solo lugar: `usecases/encargos/estados.js`.
+
+### Reglas de negocio
+
+| Regla | Dónde | Error |
+| ----- | ----- | ----- |
+| Email de cliente único | `usecases/clientes/reglas.js` | `409 EMAIL_DUPLICADO` |
+| Nombre de material único | `usecases/materiales/reglas.js` | `409 MATERIAL_DUPLICADO` |
+| Confirmar descuenta el stock de **todos** los materiales en una operación atómica; si falta alguno no cambia nada | `usecases/encargos/confirmarEncargo.js` + `cambiarEstado` del DAO (transacción en Sequelize) | `409 STOCK_INSUFICIENTE` con el detalle por material |
+| Cancelar un confirmado repone el stock | `usecases/encargos/cancelarEncargo.js` | — |
+| Solo se edita un encargo presupuestado; solo se borra presupuestado o cancelado | `usecases/encargos/estados.js` | `409 ENCARGO_NO_EDITABLE` / `ENCARGO_NO_ELIMINABLE` |
+| Acción que no corresponde al estado | `usecases/encargos/estados.js` | `409 TRANSICION_INVALIDA` |
+| No se borra un cliente con encargos ni un material usado | `eliminarCliente.js` / `eliminarMaterial.js` (y FK `RESTRICT` en la base) | `409 CLIENTE_CON_ENCARGOS` / `MATERIAL_EN_USO` |
+
+## Eventos y notificaciones
+
+`confirmarEncargo` emite eventos en un bus (`EventEmitter`) creado en el contenedor. Los listeners de `listeners/registrarListeners.js` los convierten en avisos usando un **notificador** con interfaz `notificar({ asunto, mensaje })`, elegido por configuración. Cambiar de canal no toca la regla de negocio, y si un aviso falla el listener captura el error: la confirmación responde igual.
+
+| Evento | Cuándo se emite | Qué hace su listener | Canal por defecto |
+| ------ | --------------- | -------------------- | ----------------- |
+| `encargo.confirmado` | Al confirmar un encargo | Avisa "Encargo confirmado" con el número, el cliente y la cantidad de materiales | consola (`NOTIFIER_ENCARGOS`) |
+| `material.stockBajo` | Al confirmar, por cada material que queda con stock menor o igual a su mínimo | Avisa "Stock bajo" con el material, el stock que queda y el mínimo | archivo (`NOTIFIER_STOCK`, en `NOTIFICATIONS_FILE`) |
+
 ## Arquitectura
 
 ```
@@ -59,6 +127,9 @@ index.js → container/ → routes/ → controllers/ → usecases/ → dao/
 | `schemas/`     | Schemas de validación (Zod)                                         |
 | `middlewares/` | `logger`, `validate`, `notFound`, `errorHandler`                    |
 | `errors/`      | `AppError`                                                          |
+| `events/`      | Nombres de eventos y creación del bus (`EventEmitter`)              |
+| `listeners/`   | Qué aviso se envía ante cada evento                                 |
+| `notifications/` | Notificadores (consola, archivo) y su factory                     |
 | `docs/`        | Especificación OpenAPI y montaje de Swagger UI                      |
 
 ## Requisitos
@@ -82,6 +153,9 @@ npm start        # o: npm run dev (reinicia al guardar)
 | `PERSISTENCE_TYPE` | `memory`, `sequelize`       | `memory`      | Tipo de persistencia de la API |
 | `DB_STORAGE`       | ruta de archivo             | `./ensamble.sqlite` | Archivo SQLite (solo con `sequelize`) |
 | `DB_LOGGING`       | `true`, `false`             | `false`       | Muestra el SQL que ejecuta Sequelize |
+| `NOTIFIER_ENCARGOS`| `console`, `file`           | `console`     | Canal del aviso "Encargo confirmado" |
+| `NOTIFIER_STOCK`   | `console`, `file`           | `file`        | Canal del aviso "Stock bajo"         |
+| `NOTIFICATIONS_FILE` | ruta de archivo           | `./notificaciones.log` | Archivo del canal `file`    |
 
 ## Cambiar de persistencia
 

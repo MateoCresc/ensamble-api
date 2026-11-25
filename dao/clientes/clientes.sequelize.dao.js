@@ -1,4 +1,4 @@
-import { UniqueConstraintError, fn, col, where } from "sequelize";
+import { UniqueConstraintError, ForeignKeyConstraintError, fn, col, where } from "sequelize";
 import { AppError } from "../../errors/AppError.js";
 
 // Adaptador DAO de Clientes con Sequelize (design D3). Misma interfaz que ClientesMemoryDao:
@@ -69,8 +69,16 @@ export class ClientesSequelizeDao {
   }
 
   async delete(id) {
-    const borrados = await this.#Cliente.destroy({ where: { id: Number(id) } });
-    return borrados > 0;
+    // La FK RESTRICT de la base respalda la regla del caso de uso (design D1 de encargos).
+    try {
+      const borrados = await this.#Cliente.destroy({ where: { id: Number(id) } });
+      return borrados > 0;
+    } catch (error) {
+      if (error instanceof ForeignKeyConstraintError) {
+        throw new AppError("CLIENTE_CON_ENCARGOS", "No se puede eliminar un cliente que tiene encargos", 409);
+      }
+      throw error;
+    }
   }
 }
 

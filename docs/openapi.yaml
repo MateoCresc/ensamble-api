@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Ensamble — Taller a Medida API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     API REST del taller de fabricación a medida (carpintería / herrería).
     Gestiona clientes, materiales y encargos con arquitectura en capas.
@@ -18,6 +18,8 @@ tags:
     description: Personas o empresas que encargan trabajos al taller. El email es único.
   - name: Materiales
     description: Insumos del taller con su unidad de medida y stock. El nombre es único.
+  - name: Encargos
+    description: Trabajos que un cliente le encarga al taller, con sus materiales y su ciclo de estados.
 
 paths:
   /health:
@@ -300,6 +302,16 @@ paths:
                 error:
                   code: CLIENTE_NO_ENCONTRADO
                   message: No existe un cliente con id 999
+        "409":
+          description: El cliente tiene encargos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: CLIENTE_CON_ENCARGOS
+                  message: "No se puede eliminar un cliente que tiene encargos"
 
   /materiales:
     get:
@@ -562,6 +574,526 @@ paths:
                 error:
                   code: MATERIAL_NO_ENCONTRADO
                   message: "No existe un material con id 999"
+        "409":
+          description: El material figura en encargos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_EN_USO
+                  message: "No se puede eliminar un material que figura en encargos"
+
+  /encargos:
+    get:
+      tags: [Encargos]
+      summary: Listar encargos
+      description: |
+        Devuelve los encargos (con cliente y materiales) ordenados por `id`. Filtros combinables;
+        paginación con `page` / `limit` como en los otros listados.
+
+        Los parámetros no traen valor precargado a propósito: en *Try it out* solo se envían los que completes.
+      operationId: listarEncargos
+      parameters:
+        - name: clienteId
+          in: query
+          description: Solo los encargos de ese cliente.
+          schema: { type: integer, minimum: 1 }
+        - name: estado
+          in: query
+          description: Solo los encargos en ese estado.
+          schema:
+            $ref: "#/components/schemas/EstadoEncargo"
+        - name: sort
+          in: query
+          description: "`id` (ascendente) o `-id` (descendente)."
+          schema: { type: string, enum: [id, -id] }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Listado de encargos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Encargo"
+        "400":
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: estado
+                      message: "estado debe ser uno de: presupuestado, confirmado, en_produccion, entregado, cancelado"
+    post:
+      tags: [Encargos]
+      summary: Crear encargo
+      description: |
+        Crea un encargo **presupuestado** para un cliente existente, con su lista de materiales
+        (relación N a N con cantidad). No toca stock: el stock se descuenta al confirmar.
+      operationId: crearEncargo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EncargoInput"
+            example:
+              clienteId: 1
+              descripcion: Mesa de comedor
+              fechaEntregaEstimada: "2026-12-20"
+              materiales:
+                - materialId: 1
+                  cantidad: 4.5
+      responses:
+        "201":
+          description: Encargo creado
+          headers:
+            Location:
+              description: URL del encargo creado
+              schema: { type: string }
+              example: /encargos/1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+        "400":
+          description: Cuerpo inválido (materialId repetido, cantidad <= 0 o con más de 2 decimales, fecha mal formada)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: materiales
+                      message: "No se puede repetir un materialId en la lista"
+        "404":
+          description: El cliente o algún material no existen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: MATERIAL_NO_ENCONTRADO
+                  message: "No existen los materiales: 9"
+                  details:
+                    ids: [9]
+
+  /encargos/{id}:
+    parameters:
+      - $ref: "#/components/parameters/EncargoId"
+    get:
+      tags: [Encargos]
+      summary: Obtener encargo por id
+      operationId: obtenerEncargo
+      responses:
+        "200":
+          description: Encargo encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+              example:
+                id: 1
+                clienteId: 1
+                cliente: { id: 1, nombre: Ana Pérez }
+                descripcion: Mesa de comedor
+                estado: presupuestado
+                fechaEntregaEstimada: "2026-12-20"
+                materiales:
+                  - { materialId: 1, nombre: Tablón de pino, unidad: m, cantidad: 4.5 }
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un encargo con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+    put:
+      tags: [Encargos]
+      summary: Actualizar encargo presupuestado (parcial)
+      description: |
+        Modifica `descripcion`, `fechaEntregaEstimada` y/o `materiales` (la lista enviada **reemplaza** a la anterior).
+        Solo mientras el encargo está presupuestado. El cliente no se puede cambiar.
+      operationId: actualizarEncargo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EncargoUpdate"
+            example:
+              materiales:
+                - materialId: 2
+                  cantidad: 3
+      responses:
+        "200":
+          description: Encargo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+              example:
+                id: 1
+                clienteId: 1
+                cliente: { id: 1, nombre: Ana Pérez }
+                descripcion: Mesa de comedor
+                estado: presupuestado
+                fechaEntregaEstimada: "2026-12-20"
+                materiales:
+                  - { materialId: 1, nombre: Tablón de pino, unidad: m, cantidad: 4.5 }
+        "400":
+          description: Id o cuerpo inválidos (incluye body sin campos editables)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: body
+                      message: "Enviá al menos uno de estos campos: descripcion, fechaEntregaEstimada o materiales"
+        "404":
+          description: El encargo o algún material no existen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+        "409":
+          description: El encargo ya no está presupuestado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_EDITABLE
+                  message: "Un encargo confirmado no se puede modificar"
+    delete:
+      tags: [Encargos]
+      summary: Eliminar encargo
+      description: Solo se pueden eliminar encargos presupuestados o cancelados.
+      operationId: eliminarEncargo
+      responses:
+        "204":
+          description: Encargo eliminado (sin cuerpo)
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un encargo con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+        "409":
+          description: El encargo no está presupuestado ni cancelado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ELIMINABLE
+                  message: "Un encargo confirmado no se puede eliminar; cancelalo primero"
+
+  /encargos/{id}/confirmar:
+    parameters:
+      - $ref: "#/components/parameters/EncargoId"
+    put:
+      tags: [Encargos]
+      summary: Confirmar encargo (descuenta stock)
+      description: Pasa un encargo presupuestado a **confirmado** y descuenta el stock de todos sus materiales en una sola operación atómica. Si falta stock de alguno no modifica nada (409 `STOCK_INSUFICIENTE`); también responde 409 con `TRANSICION_INVALIDA` o `ENCARGO_SIN_MATERIALES`. Emite `encargo.confirmado` y, por cada material que queda en o bajo su mínimo, `material.stockBajo`.
+      operationId: confirmarEncargo
+      responses:
+        "200":
+          description: Encargo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+              example:
+                id: 1
+                clienteId: 1
+                cliente: { id: 1, nombre: Ana Pérez }
+                descripcion: Mesa de comedor
+                estado: confirmado
+                fechaEntregaEstimada: "2026-12-20"
+                materiales:
+                  - { materialId: 1, nombre: Tablón de pino, unidad: m, cantidad: 4.5 }
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un encargo con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+        "409":
+          description: Stock insuficiente, encargo sin materiales o transición inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: STOCK_INSUFICIENTE
+                  message: "No hay stock suficiente para confirmar el encargo"
+                  details:
+                    - materialId: 2
+                      nombre: Caño de hierro
+                      requerido: 5
+                      disponible: 3
+
+  /encargos/{id}/cancelar:
+    parameters:
+      - $ref: "#/components/parameters/EncargoId"
+    put:
+      tags: [Encargos]
+      summary: Cancelar encargo (repone stock si estaba confirmado)
+      description: Pasa a **cancelado** un encargo presupuestado o confirmado. Si estaba confirmado, repone el stock descontado en la misma operación atómica.
+      operationId: cancelarEncargo
+      responses:
+        "200":
+          description: Encargo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+              example:
+                id: 1
+                clienteId: 1
+                cliente: { id: 1, nombre: Ana Pérez }
+                descripcion: Mesa de comedor
+                estado: cancelado
+                fechaEntregaEstimada: "2026-12-20"
+                materiales:
+                  - { materialId: 1, nombre: Tablón de pino, unidad: m, cantidad: 4.5 }
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un encargo con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+        "409":
+          description: La acción no corresponde al estado actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: TRANSICION_INVALIDA
+                  message: "No se puede cancelar un encargo en estado entregado"
+                  details:
+                    estadoActual: entregado
+                    accion: cancelar
+
+  /encargos/{id}/iniciar:
+    parameters:
+      - $ref: "#/components/parameters/EncargoId"
+    put:
+      tags: [Encargos]
+      summary: Iniciar producción
+      description: Pasa un encargo confirmado a **en_produccion**.
+      operationId: iniciarEncargo
+      responses:
+        "200":
+          description: Encargo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+              example:
+                id: 1
+                clienteId: 1
+                cliente: { id: 1, nombre: Ana Pérez }
+                descripcion: Mesa de comedor
+                estado: en_produccion
+                fechaEntregaEstimada: "2026-12-20"
+                materiales:
+                  - { materialId: 1, nombre: Tablón de pino, unidad: m, cantidad: 4.5 }
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un encargo con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+        "409":
+          description: La acción no corresponde al estado actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: TRANSICION_INVALIDA
+                  message: "No se puede iniciar un encargo en estado presupuestado"
+                  details:
+                    estadoActual: presupuestado
+                    accion: iniciar
+
+  /encargos/{id}/entregar:
+    parameters:
+      - $ref: "#/components/parameters/EncargoId"
+    put:
+      tags: [Encargos]
+      summary: Entregar encargo
+      description: Pasa un encargo en producción a **entregado**.
+      operationId: entregarEncargo
+      responses:
+        "200":
+          description: Encargo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Encargo"
+              example:
+                id: 1
+                clienteId: 1
+                cliente: { id: 1, nombre: Ana Pérez }
+                descripcion: Mesa de comedor
+                estado: entregado
+                fechaEntregaEstimada: "2026-12-20"
+                materiales:
+                  - { materialId: 1, nombre: Tablón de pino, unidad: m, cantidad: 4.5 }
+        "400":
+          description: Id inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorValidacion"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Los datos enviados no son válidos
+                  details:
+                    - field: id
+                      message: "El id debe ser mayor a 0"
+        "404":
+          description: No existe un encargo con ese id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: ENCARGO_NO_ENCONTRADO
+                  message: "No existe un encargo con id 999"
+        "409":
+          description: La acción no corresponde al estado actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: TRANSICION_INVALIDA
+                  message: "No se puede entregar un encargo en estado confirmado"
+                  details:
+                    estadoActual: confirmado
+                    accion: entregar
 
 components:
   parameters:
@@ -577,6 +1109,13 @@ components:
       in: path
       required: true
       description: Id entero del material
+      schema: { type: integer, minimum: 1 }
+      example: 1
+    EncargoId:
+      name: id
+      in: path
+      required: true
+      description: Id entero del encargo
       schema: { type: integer, minimum: 1 }
       example: 1
 
@@ -718,6 +1257,75 @@ components:
           type: number
           minimum: 0
           multipleOf: 0.01
+
+    EstadoEncargo:
+      type: string
+      enum: [presupuestado, confirmado, en_produccion, entregado, cancelado]
+      description: "presupuestado → confirmado → en_produccion → entregado; cancelado desde presupuestado o confirmado."
+
+    EncargoMaterial:
+      type: object
+      required: [materialId, nombre, unidad, cantidad]
+      description: Renglón de la relación N a N entre un encargo y un material.
+      properties:
+        materialId: { type: integer, example: 1 }
+        nombre: { type: string, example: Tablón de pino }
+        unidad:
+          $ref: "#/components/schemas/Unidad"
+        cantidad: { type: number, minimum: 0.01, multipleOf: 0.01, example: 4.5 }
+
+    RenglonInput:
+      type: object
+      required: [materialId, cantidad]
+      properties:
+        materialId: { type: integer, minimum: 1, example: 1 }
+        cantidad: { type: number, minimum: 0.01, multipleOf: 0.01, example: 4.5 }
+
+    Encargo:
+      type: object
+      required: [id, clienteId, cliente, descripcion, estado, fechaEntregaEstimada, materiales]
+      properties:
+        id: { type: integer, example: 1 }
+        clienteId: { type: integer, example: 1 }
+        cliente:
+          type: object
+          required: [id, nombre]
+          properties:
+            id: { type: integer, example: 1 }
+            nombre: { type: string, example: Ana Pérez }
+        descripcion: { type: string, example: Mesa de comedor }
+        estado:
+          $ref: "#/components/schemas/EstadoEncargo"
+        fechaEntregaEstimada: { type: string, format: date, nullable: true, example: "2026-12-20" }
+        materiales:
+          type: array
+          items:
+            $ref: "#/components/schemas/EncargoMaterial"
+
+    EncargoInput:
+      type: object
+      required: [clienteId, descripcion]
+      properties:
+        clienteId: { type: integer, minimum: 1 }
+        descripcion: { type: string, minLength: 3, maxLength: 500 }
+        fechaEntregaEstimada: { type: string, format: date, nullable: true }
+        materiales:
+          type: array
+          description: Sin materialId repetidos.
+          items:
+            $ref: "#/components/schemas/RenglonInput"
+
+    EncargoUpdate:
+      type: object
+      minProperties: 1
+      description: Al menos uno de los campos. `materiales` reemplaza la lista completa.
+      properties:
+        descripcion: { type: string, minLength: 3, maxLength: 500 }
+        fechaEntregaEstimada: { type: string, format: date, nullable: true }
+        materiales:
+          type: array
+          items:
+            $ref: "#/components/schemas/RenglonInput"
 
     Error:
       type: object
